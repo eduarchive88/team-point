@@ -362,7 +362,7 @@ export default function TeacherDashboard() {
               </div>
             </CardContent>
           </Card>
-        ))}}
+        ))}
         )}
       </div>
     </div>
