@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { useRouter } from 'next/navigation'
 import Footer from '@/components/Footer'
-import Footer from '@/components/Footer'
 
 export default function GroupDashboard() {
   const [leader, setLeader] = useState<any>(null)
