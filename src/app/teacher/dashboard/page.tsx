@@ -304,36 +304,6 @@ export default function TeacherDashboard() {
               </Card>
             </div>
 
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>등록된 학생 ({students.length}명)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {students.map(s => (
-                    <div key={s.id} className="p-2 bg-gray-100 rounded text-sm flex items-center justify-between">
-                      <span>
-                        {s.grade}학년 {s.class_number}반 {s.student_number}번 {s.name} 
-                        <input 
-                          type="number" 
-                          value={s.group_number} 
-                          onChange={e => updateStudentGroup(s.id, Number(e.target.value))}
-                          className="w-12 mx-2 px-1 border rounded"
-                        />
-                        모둠 {s.total_points}P
-                      </span>
-                      <Button 
-                        onClick={() => toggleGroupLeader(s.id, s.is_group_leader)}
-                        className={`text-xs px-2 py-1 h-auto ${s.is_group_leader ? 'bg-blue-600' : 'bg-gray-400'}`}
-                      >
-                        {s.is_group_leader ? '대표' : '일반'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {sessions.filter(s => s.status === 'active').map(session => (
               <Card key={session.id} className="mt-6 border-2 border-blue-500">
                 <CardHeader>
@@ -371,6 +341,56 @@ export default function TeacherDashboard() {
                 </CardContent>
               </Card>
             ))}
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>등록된 학생 ({students.length}명)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">학년</th>
+                        <th className="text-left p-2">반</th>
+                        <th className="text-left p-2">번호</th>
+                        <th className="text-left p-2">이름</th>
+                        <th className="text-center p-2">모둠</th>
+                        <th className="text-center p-2">포인트</th>
+                        <th className="text-center p-2">모둠장</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.map(s => (
+                        <tr key={s.id} className="border-b hover:bg-gray-50">
+                          <td className="p-2">{s.grade}학년</td>
+                          <td className="p-2">{s.class_number}반</td>
+                          <td className="p-2">{s.student_number}번</td>
+                          <td className="p-2 font-medium">{s.name}</td>
+                          <td className="p-2 text-center">
+                            <input 
+                              type="number" 
+                              value={s.group_number} 
+                              onChange={e => updateStudentGroup(s.id, Number(e.target.value))}
+                              className="w-16 px-2 py-1 border rounded text-center"
+                            />
+                          </td>
+                          <td className="p-2 text-center text-blue-600 font-semibold">{s.total_points}P</td>
+                          <td className="p-2 text-center">
+                            <Button 
+                              onClick={() => toggleGroupLeader(s.id, s.is_group_leader)}
+                              className={`text-xs px-3 py-1 h-auto ${s.is_group_leader ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'}`}
+                            >
+                              {s.is_group_leader ? '✓ 모둠장' : '모둠장 지정'}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
 
             {sessions.filter(s => s.status === 'closed').map(session => (
               <Card key={session.id} className="mt-6 opacity-60">
