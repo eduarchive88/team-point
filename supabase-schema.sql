@@ -26,6 +26,7 @@ CREATE TABLE activity_sessions (
   id SERIAL PRIMARY KEY,
   teacher_id INT REFERENCES teachers(id) ON DELETE CASCADE,
   activity_name VARCHAR(255) NOT NULL,
+  session_code VARCHAR(6) UNIQUE NOT NULL,
   tokens_per_student INT NOT NULL,
   point_conversion_rate DECIMAL(10, 2) DEFAULT 1.0,
   total_groups INT NOT NULL DEFAULT 6,

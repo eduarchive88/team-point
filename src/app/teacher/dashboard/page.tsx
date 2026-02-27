@@ -20,6 +20,8 @@ export default function TeacherDashboard() {
   const [activityName, setActivityName] = useState('')
   const [tokensPerStudent, setTokensPerStudent] = useState('')
   const [totalGroups, setTotalGroups] = useState('')
+  const [showResults, setShowResults] = useState(false)
+  const [sessionResults, setSessionResults] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -126,9 +128,13 @@ export default function TeacherDashboard() {
       return alert('모든 필드를 입력하세요')
     }
     
+    // 6자리 랜덤 세션 코드 생성
+    const sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    
     await supabase.from('activity_sessions').insert({
       teacher_id: teacher.id,
       activity_name: activityName,
+      session_code: sessionCode,
       tokens_per_student: parseInt(tokensPerStudent),
       total_groups: parseInt(totalGroups),
       status: 'active'
@@ -178,6 +184,16 @@ export default function TeacherDashboard() {
     }
   }
 
+  const viewSessionResults = async (sessionId: number) => {
+    const { data } = await supabase
+      .from('activity_votes')
+      .select('*, students(grade, class_number, student_number, name, group_number)')
+      .eq('session_id', sessionId)
+    
+    setSessionResults(data || [])
+    setShowResults(true)
+  }
+
   if (!teacher) return <div>로딩중...</div>
 
   return (
@@ -185,10 +201,48 @@ export default function TeacherDashboard() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">{teacher.name} 선생님 대시보드</h1>
-          <Button onClick={() => { localStorage.removeItem('teacher'); router.push('/') }}>
-            로그아웃
-          </Button>
+          <div className="space-x-2">
+            {showResults && (
+              <button 
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                onClick={() => setShowResults(false)}
+              >
+                대시보드로
+              </button>
+            )}
+            <Button onClick={() => { localStorage.removeItem('teacher'); router.push('/') }}>
+              로그아웃
+            </Button>
+          </div>
         </div>
+
+        {showResults ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>세션 결과</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {sessionResults.map((vote, idx) => (
+                  <div key={idx} className="p-4 border rounded">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold">
+                          {vote.students?.grade}-{vote.students?.class_number}-{vote.students?.student_number} {vote.students?.name}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {vote.students?.group_number}모둠 → {vote.target_group}모둠
+                        </p>
+                      </div>
+                      <span className="text-blue-600 font-bold">{vote.allocated_tokens} 토큰</span>
+                    </div>
+                    <p className="text-gray-700">{vote.feedback}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
@@ -296,13 +350,20 @@ export default function TeacherDashboard() {
               <CardTitle>활성 세션: {session.activity_name}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-4">토큰: {session.tokens_per_student} | 모둠 수: {session.total_groups}</p>
-              <Button onClick={() => closeSession(session.id)} className="bg-red-600">
-                세션 종료
-              </Button>
+              <div className="mb-4">
+                <p className="text-lg font-bold text-blue-600">세션 코드: {session.session_code}</p>
+                <p>토큰: {session.tokens_per_student} | 모둠 수: {session.total_groups}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => viewSessionResults(session.id)}>결과 보기</Button>
+                <Button onClick={() => closeSession(session.id)} className="bg-red-600">
+                  세션 종료
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        ))}
+        ))}}
+        )}
       </div>
     </div>
   )

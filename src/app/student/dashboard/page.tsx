@@ -19,11 +19,13 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     const studentData = localStorage.getItem('student')
-    if (!studentData) return router.push('/student/login')
+    const sessionData = localStorage.getItem('session')
+    if (!studentData || !sessionData) return router.push('/student/login')
     
     const s = JSON.parse(studentData)
+    const sess = JSON.parse(sessionData)
     setStudent(s)
-    loadActiveSession(s.teacher_id)
+    setSession(sess)
     loadFeedbacks(s.id)
   }, [])
 
