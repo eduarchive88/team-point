@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { useRouter } from 'next/navigation'
+import Footer from '@/components/Footer'
 
 export default function StudentDashboard() {
   const [student, setStudent] = useState<any>(null)
@@ -81,8 +82,9 @@ export default function StudentDashboard() {
   if (!student) return <div>로딩중...</div>
 
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="flex-1 p-4">
+        <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold">{student.name} ({student.group_number}모둠)</h1>
@@ -182,7 +184,9 @@ export default function StudentDashboard() {
             )}
           </div>
         )}
+        </div>
       </div>
+      <Footer />
     </div>
   )
 }

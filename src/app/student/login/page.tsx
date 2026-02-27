@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Footer from '@/components/Footer'
 
 export default function StudentLogin() {
   const [studentNumber, setStudentNumber] = useState('')
@@ -51,8 +52,9 @@ export default function StudentLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-between p-4 bg-gray-50">
+      <div className="flex-1 flex items-center justify-center w-full">
+        <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>학생 로그인</CardTitle>
         </CardHeader>
@@ -75,7 +77,9 @@ export default function StudentLogin() {
             홈으로 돌아가기
           </Link>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
+      <Footer />
     </div>
   )
 }

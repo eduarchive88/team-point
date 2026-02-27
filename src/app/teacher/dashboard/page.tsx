@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useRouter } from 'next/navigation'
 import { generateSampleExcel, parseExcelFile } from '@/lib/excel'
+import Footer from '@/components/Footer'
 
 export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null)
@@ -20,6 +21,10 @@ export default function TeacherDashboard() {
   const [activityName, setActivityName] = useState('')
   const [tokensPerStudent, setTokensPerStudent] = useState('')
   const [totalGroups, setTotalGroups] = useState('')
+  const [sessionCode, setSessionCode] = useState('')
+  const [editingSessionId, setEditingSessionId] = useState<number | null>(null)
+  const [newSessionCode, setNewSessionCode] = useState('')
+  const [codeError, setCodeError] = useState('')
   const [showResults, setShowResults] = useState(false)
   const [sessionResults, setSessionResults] = useState<any[]>([])
   const router = useRouter()
@@ -42,7 +47,7 @@ export default function TeacherDashboard() {
   }
 
   const loadSessions = async (teacherId: number) => {
-    const { data } = await supabase.from('activity_sessions').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
+    const { data } = await supabase.from('activity_sessions').select('*').eq('teacher_id', teacherId).order('status', { ascending: true }).order('created_at', { ascending: false })
     setSessions(data || [])
   }
 
@@ -103,17 +108,35 @@ export default function TeacherDashboard() {
     }
   }
 
+  const updateStudentGroup = async (studentId: number, newGroup: number) => {
+    await supabase.from('students').update({ group_number: newGroup }).eq('id', studentId)
+    loadStudents(teacher.id)
+  }
+
+  const toggleGroupLeader = async (studentId: number, currentStatus: boolean) => {
+    await supabase.from('students').update({ is_group_leader: !currentStatus }).eq('id', studentId)
+    loadStudents(teacher.id)
+  }
+
   const createSession = async () => {
     if (!activityName || !tokensPerStudent || !totalGroups) {
       return alert('모든 필드를 입력하세요')
     }
     
-    const sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    let code = sessionCode.toUpperCase()
+    if (!code) {
+      code = Math.random().toString(36).substring(2, 8).toUpperCase()
+    }
+    
+    const { data: existing } = await supabase.from('activity_sessions').select('id').eq('session_code', code).single()
+    if (existing) {
+      return alert('이미 사용 중인 세션 코드입니다')
+    }
     
     await supabase.from('activity_sessions').insert({
       teacher_id: teacher.id,
       activity_name: activityName,
-      session_code: sessionCode,
+      session_code: code,
       tokens_per_student: parseInt(tokensPerStudent),
       total_groups: parseInt(totalGroups),
       status: 'active'
@@ -122,6 +145,30 @@ export default function TeacherDashboard() {
     setActivityName('')
     setTokensPerStudent('')
     setTotalGroups('')
+    setSessionCode('')
+    loadSessions(teacher.id)
+  }
+
+  const checkSessionCode = async (code: string) => {
+    if (!code) {
+      setCodeError('')
+      return
+    }
+    const { data } = await supabase.from('activity_sessions').select('id').eq('session_code', code.toUpperCase()).single()
+    setCodeError(data ? '이미 사용 중인 코드입니다' : '사용 가능한 코드입니다')
+  }
+
+  const updateSessionCode = async (sessionId: number) => {
+    if (!newSessionCode) return
+    
+    const { data: existing } = await supabase.from('activity_sessions').select('id').eq('session_code', newSessionCode.toUpperCase()).single()
+    if (existing && existing.id !== sessionId) {
+      return alert('이미 사용 중인 세션 코드입니다')
+    }
+    
+    await supabase.from('activity_sessions').update({ session_code: newSessionCode.toUpperCase() }).eq('id', sessionId)
+    setEditingSessionId(null)
+    setNewSessionCode('')
     loadSessions(teacher.id)
   }
 
@@ -143,8 +190,9 @@ export default function TeacherDashboard() {
   if (!teacher) return <div>로딩중...</div>
 
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="flex-1 p-4">
+        <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">{teacher.name} 선생님 대시보드</h1>
           <div className="space-x-2">
@@ -236,6 +284,21 @@ export default function TeacherDashboard() {
                   <Input placeholder="활동명" value={activityName} onChange={e => setActivityName(e.target.value)} />
                   <Input placeholder="1인당 토큰" value={tokensPerStudent} onChange={e => setTokensPerStudent(e.target.value)} />
                   <Input placeholder="총 모둠 수" value={totalGroups} onChange={e => setTotalGroups(e.target.value)} />
+                  <div>
+                    <Input 
+                      placeholder="세션 코드 (선택, 비우면 자동생성)" 
+                      value={sessionCode} 
+                      onChange={e => {
+                        setSessionCode(e.target.value)
+                        checkSessionCode(e.target.value)
+                      }} 
+                    />
+                    {codeError && (
+                      <p className={`text-xs mt-1 ${codeError.includes('사용 가능') ? 'text-green-600' : 'text-red-600'}`}>
+                        {codeError}
+                      </p>
+                    )}
+                  </div>
                   <Button onClick={createSession} className="w-full">세션 시작</Button>
                 </CardContent>
               </Card>
@@ -248,8 +311,23 @@ export default function TeacherDashboard() {
               <CardContent>
                 <div className="space-y-2">
                   {students.map(s => (
-                    <div key={s.id} className="p-2 bg-gray-100 rounded text-sm">
-                      {s.grade}-{s.class_number}-{s.student_number} {s.name} ({s.group_number}모둠) {s.total_points}P
+                    <div key={s.id} className="p-2 bg-gray-100 rounded text-sm flex items-center justify-between">
+                      <span>
+                        {s.grade}학년 {s.class_number}반 {s.student_number}번 {s.name} 
+                        <input 
+                          type="number" 
+                          value={s.group_number} 
+                          onChange={e => updateStudentGroup(s.id, Number(e.target.value))}
+                          className="w-12 mx-2 px-1 border rounded"
+                        />
+                        모둠 {s.total_points}P
+                      </span>
+                      <Button 
+                        onClick={() => toggleGroupLeader(s.id, s.is_group_leader)}
+                        className={`text-xs px-2 py-1 h-auto ${s.is_group_leader ? 'bg-blue-600' : 'bg-gray-400'}`}
+                      >
+                        {s.is_group_leader ? '대표' : '일반'}
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -257,13 +335,31 @@ export default function TeacherDashboard() {
             </Card>
 
             {sessions.filter(s => s.status === 'active').map(session => (
-              <Card key={session.id} className="mt-6">
+              <Card key={session.id} className="mt-6 border-2 border-blue-500">
                 <CardHeader>
                   <CardTitle>활성 세션: {session.activity_name}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="mb-4">
-                    <p className="text-lg font-bold text-blue-600">세션 코드: {session.session_code}</p>
+                    {editingSessionId === session.id ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newSessionCode} 
+                          onChange={e => setNewSessionCode(e.target.value)}
+                          placeholder="새 세션 코드"
+                        />
+                        <Button onClick={() => updateSessionCode(session.id)}>저장</Button>
+                        <Button onClick={() => setEditingSessionId(null)} className="bg-gray-400">취소</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-lg font-bold text-blue-600">세션 코드: {session.session_code}</p>
+                        <Button onClick={() => {
+                          setEditingSessionId(session.id)
+                          setNewSessionCode(session.session_code)
+                        }} className="text-xs px-2 py-1 h-auto">변경</Button>
+                      </div>
+                    )}
                     <p>토큰: {session.tokens_per_student} | 모둠 수: {session.total_groups}</p>
                   </div>
                   <div className="flex gap-2">
@@ -275,9 +371,23 @@ export default function TeacherDashboard() {
                 </CardContent>
               </Card>
             ))}
+
+            {sessions.filter(s => s.status === 'closed').map(session => (
+              <Card key={session.id} className="mt-6 opacity-60">
+                <CardHeader>
+                  <CardTitle>종료된 세션: {session.activity_name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">세션 코드: {session.session_code}</p>
+                  <Button onClick={() => viewSessionResults(session.id)} className="mt-2">결과 보기</Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
+        </div>
       </div>
+      <Footer />
     </div>
   )
 }
