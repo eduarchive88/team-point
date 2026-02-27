@@ -27,6 +27,8 @@ export default function TeacherDashboard() {
   const [codeError, setCodeError] = useState('')
   const [showResults, setShowResults] = useState(false)
   const [sessionResults, setSessionResults] = useState<any[]>([])
+  const [sortField, setSortField] = useState<string>('is_group_leader')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const router = useRouter()
 
   useEffect(() => {
@@ -45,6 +47,36 @@ export default function TeacherDashboard() {
     const { data } = await supabase.from('students').select('*').eq('teacher_id', teacherId)
     setStudents(data || [])
   }
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortedStudents = [...students].sort((a, b) => {
+    let aVal = a[sortField]
+    let bVal = b[sortField]
+    
+    // 모둠장 여부는 불린이므로 숫자로 변환
+    if (sortField === 'is_group_leader') {
+      aVal = a.is_group_leader ? 1 : 0
+      bVal = b.is_group_leader ? 1 : 0
+    }
+    
+    // 숫자 필드 처리
+    if (sortField === 'group_number' || sortField === 'total_points') {
+      aVal = Number(aVal)
+      bVal = Number(bVal)
+    }
+    
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
+    return 0
+  })
 
   const loadSessions = async (teacherId: number) => {
     const { data } = await supabase.from('activity_sessions').select('*').eq('teacher_id', teacherId).order('status', { ascending: true }).order('created_at', { ascending: false })
@@ -368,17 +400,31 @@ export default function TeacherDashboard() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left p-2">학년</th>
-                        <th className="text-left p-2">반</th>
-                        <th className="text-left p-2">번호</th>
-                        <th className="text-left p-2">이름</th>
-                        <th className="text-center p-2">모둠</th>
-                        <th className="text-center p-2">포인트</th>
-                        <th className="text-center p-2">모둠장</th>
+                        <th className="text-left p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('grade')}>
+                          학년 {sortField === 'grade' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="text-left p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('class_number')}>
+                          반 {sortField === 'class_number' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="text-left p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('student_number')}>
+                          번호 {sortField === 'student_number' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="text-left p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>
+                          이름 {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="text-center p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('group_number')}>
+                          모둠 {sortField === 'group_number' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="text-center p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('total_points')}>
+                          포인트 {sortField === 'total_points' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="text-center p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('is_group_leader')}>
+                          모둠장 {sortField === 'is_group_leader' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {students.map(s => (
+                      {sortedStudents.map(s => (
                         <tr key={s.id} className="border-b hover:bg-gray-50">
                           <td className="p-2">{s.grade}학년</td>
                           <td className="p-2">{s.class_number}반</td>
