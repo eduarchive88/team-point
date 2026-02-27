@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Point - Supabase 설정</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .step { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .code { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Team Point - Supabase 설정 가이드</h1>
+    
+    <div class="step">
+        <h2>1단계: Supabase 프로젝트 생성</h2>
+        <ol>
+            <li><a href="https://supabase.com" target="_blank">https://supabase.com</a> 접속</li>
+            <li>"Start your project" 클릭</li>
+            <li>프로젝트 이름: <strong>team-point</strong></li>
+            <li>Database Password 설정 (기억해두세요!)</li>
+            <li>Region: <strong>Northeast Asia (Seoul)</strong> 선택</li>
+            <li>"Create new project" 클릭</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h2>2단계: SQL 스키마 실행</h2>
+        <ol>
+            <li>Supabase Dashboard 좌측 메뉴에서 <strong>SQL Editor</strong> 클릭</li>
+            <li>"New query" 클릭</li>
+            <li>아래 SQL 코드를 복사해서 붙여넣기:</li>
+        </ol>
+        <button onclick="copySQL()">📋 SQL 복사하기</button>
+        <pre class="code" id="sqlCode">-- 조 정보 테이블
+CREATE TABLE groups (
+  id SERIAL PRIMARY KEY,
+  group_number INT UNIQUE NOT NULL CHECK (group_number BETWEEN 1 AND 9),
+  total_points INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 활동 세션 테이블
+CREATE TABLE activity_sessions (
+  id SERIAL PRIMARY KEY,
+  activity_name VARCHAR(255) NOT NULL,
+  tokens_per_student INT NOT NULL,
+  point_conversion_rate DECIMAL(10, 2) DEFAULT 1.0,
+  status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+  created_at TIMESTAMP DEFAULT NOW(),
+  closed_at TIMESTAMP
+);
+
+-- 투표 내역 테이블
+CREATE TABLE activity_votes (
+  id SERIAL PRIMARY KEY,
+  session_id INT REFERENCES activity_sessions(id) ON DELETE CASCADE,
+  student_id VARCHAR(100) NOT NULL,
+  student_group INT NOT NULL,
+  target_group INT REFERENCES groups(group_number),
+  allocated_tokens INT NOT NULL,
+  feedback TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 1~9조 초기 데이터 삽입
+INSERT INTO groups (group_number) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+-- 투표 완료 여부 확인용 인덱스
+CREATE INDEX idx_votes_session_student ON activity_votes(session_id, student_id);
+CREATE INDEX idx_votes_target_group ON activity_votes(target_group);
+
+-- 포인트 자동 증가 함수
+CREATE OR REPLACE FUNCTION increment_group_points(group_num INT, points_to_add INT)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE groups 
+  SET total_points = total_points + points_to_add 
+  WHERE group_number = group_num;
+END;
+$$ LANGUAGE plpgsql;</pre>
+        <ol start="4">
+            <li>"Run" 버튼 클릭하여 실행</li>
+            <li>성공 메시지 확인</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h2>3단계: API 키 복사</h2>
+        <ol>
+            <li>Supabase Dashboard 좌측 메뉴에서 <strong>Settings</strong> 클릭</li>
+            <li><strong>API</strong> 탭 클릭</li>
+            <li>다음 정보를 복사:
+                <ul>
+                    <li><strong>Project URL</strong></li>
+                    <li><strong>anon public</strong> key</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h2>4단계: 환경 변수 설정</h2>
+        <p>프로젝트 폴더의 <code>.env.local</code> 파일을 열고 복사한 정보를 입력하세요:</p>
+        <pre class="code">NEXT_PUBLIC_SUPABASE_URL=여기에_Project_URL_붙여넣기
+NEXT_PUBLIC_SUPABASE_ANON_KEY=여기에_anon_key_붙여넣기</pre>
+    </div>
+
+    <div class="warning">
+        <strong>⚠️ 중요:</strong> 환경 변수 설정 후 개발 서버를 재시작해야 합니다!
+    </div>
+
+    <div class="step">
+        <h2>5단계: 서버 재시작</h2>
+        <ol>
+            <li>실행 중인 개발 서버 터미널에서 <code>Ctrl + C</code></li>
+            <li><code>npm run dev</code> 다시 실행</li>
+            <li><a href="http://localhost:3000" target="_blank">http://localhost:3000</a> 접속</li>
+        </ol>
+    </div>
+
+    <script>
+        function copySQL() {
+            const sql = document.getElementById('sqlCode').textContent;
+            navigator.clipboard.writeText(sql).then(() => {
+                alert('SQL 코드가 클립보드에 복사되었습니다!');
+            });
+        }
+    </script>
+</body>
+</html>
