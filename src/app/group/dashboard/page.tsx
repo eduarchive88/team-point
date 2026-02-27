@@ -21,9 +21,25 @@ export default function GroupDashboard() {
     const sessionData = localStorage.getItem('session')
     if (!leaderData || !sessionData) return router.push('/group/login')
     
-    setLeader(JSON.parse(leaderData))
-    setSession(JSON.parse(sessionData))
+    const l = JSON.parse(leaderData)
+    const sess = JSON.parse(sessionData)
+    setLeader(l)
+    setSession(sess)
+    checkAlreadyVoted(l.id, sess.id)
   }, [])
+
+  const checkAlreadyVoted = async (leaderId: number, sessionId: number) => {
+    const { data } = await supabase
+      .from('activity_votes')
+      .select('id')
+      .eq('student_id', leaderId)
+      .eq('session_id', sessionId)
+      .limit(1)
+    
+    if (data && data.length > 0) {
+      setSubmitted(true)
+    }
+  }
 
   const updateVote = (group: number, field: 'tokens' | 'feedback', value: any) => {
     setVotes((prev: any) => ({

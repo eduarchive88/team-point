@@ -28,7 +28,21 @@ export default function StudentDashboard() {
     setStudent(s)
     setSession(sess)
     loadFeedbacks(s.id)
+    checkAlreadyVoted(s.id, sess.id)
   }, [])
+
+  const checkAlreadyVoted = async (studentId: number, sessionId: number) => {
+    const { data } = await supabase
+      .from('activity_votes')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('session_id', sessionId)
+      .limit(1)
+    
+    if (data && data.length > 0) {
+      setSubmitted(true)
+    }
+  }
 
   const loadActiveSession = async (teacherId: number) => {
     const { data } = await supabase
