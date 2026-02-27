@@ -27,9 +27,12 @@ export default function TeacherDashboard() {
     if (!teacherData) return router.push('/teacher/login')
     
     const t = JSON.parse(teacherData)
+    console.log('Teacher data:', t)
     setTeacher(t)
-    loadStudents(t.id)
-    loadSessions(t.id)
+    if (t && t.id) {
+      loadStudents(t.id)
+      loadSessions(t.id)
+    }
   }, [])
 
   const loadStudents = async (teacherId: number) => {
@@ -48,6 +51,13 @@ export default function TeacherDashboard() {
     if (!grade || !classNumber || !studentNumber || !studentName || !groupNumber) {
       return alert('모든 필드를 입력하세요')
     }
+    
+    if (!teacher || !teacher.id) {
+      alert('교사 정보가 없습니다. 다시 로그인해주세요.')
+      return
+    }
+    
+    console.log('Adding student with teacher_id:', teacher.id)
     
     const { data, error } = await supabase.from('students').insert({
       teacher_id: teacher.id,
@@ -76,8 +86,15 @@ export default function TeacherDashboard() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (!teacher || !teacher.id) {
+      alert('교사 정보가 없습니다. 다시 로그인해주세요.')
+      return
+    }
+
     try {
       const students = await parseExcelFile(file)
+      console.log('Parsed students:', students)
+      console.log('Teacher ID:', teacher.id)
       
       const { data, error } = await supabase.from('students').insert(
         students.map(student => ({
