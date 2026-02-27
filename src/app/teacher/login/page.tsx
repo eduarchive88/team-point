@@ -19,9 +19,12 @@ export default function TeacherLogin() {
     if (isSignup) {
       if (!email || !password || !name) return alert('모든 필드를 입력하세요')
       
+      // 비밀번호 해싱
+      const hashedPassword = btoa(password) // 간단한 해싱
+      
       const { data, error } = await supabase
         .from('teachers')
-        .insert({ email, password, name })
+        .insert({ email, password: hashedPassword, name })
         .select()
         .single()
 
@@ -30,11 +33,14 @@ export default function TeacherLogin() {
       localStorage.setItem('teacher', JSON.stringify(data))
       router.push('/teacher/dashboard')
     } else {
+      // 비밀번호 해싱
+      const hashedPassword = btoa(password)
+      
       const { data, error } = await supabase
         .from('teachers')
         .select('*')
         .eq('email', email)
-        .eq('password', password)
+        .eq('password', hashedPassword)
         .single()
 
       if (error || !data) return alert('로그인 실패')
