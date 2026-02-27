@@ -6,17 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useRouter } from 'next/navigation'
+import { generateSampleExcel, parseExcelFile } from '@/lib/excel'
 
 export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null)
   const [students, setStudents] = useState<any[]>([])
   const [sessions, setSessions] = useState<any[]>([])
+  const [grade, setGrade] = useState('')
+  const [classNumber, setClassNumber] = useState('')
   const [studentNumber, setStudentNumber] = useState('')
   const [studentName, setStudentName] = useState('')
-  const [groupNumber, setGroupNumber] = useState(1)
+  const [groupNumber, setGroupNumber] = useState('')
   const [activityName, setActivityName] = useState('')
-  const [tokensPerStudent, setTokensPerStudent] = useState(1000)
-  const [totalGroups, setTotalGroups] = useState(6)
+  const [tokensPerStudent, setTokensPerStudent] = useState('')
+  const [totalGroups, setTotalGroups] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -40,32 +43,68 @@ export default function TeacherDashboard() {
   }
 
   const addStudent = async () => {
-    if (!studentNumber || !studentName) return alert('학번과 이름을 입력하세요')
+    if (!grade || !classNumber || !studentNumber || !studentName || !groupNumber) {
+      return alert('모든 필드를 입력하세요')
+    }
     
     await supabase.from('students').insert({
       teacher_id: teacher.id,
+      grade,
+      class_number: classNumber,
       student_number: studentNumber,
       name: studentName,
-      group_number: groupNumber
+      group_number: parseInt(groupNumber)
     })
     
+    setGrade('')
+    setClassNumber('')
     setStudentNumber('')
     setStudentName('')
+    setGroupNumber('')
     loadStudents(teacher.id)
   }
 
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const students = await parseExcelFile(file)
+      
+      for (const student of students) {
+        await supabase.from('students').insert({
+          teacher_id: teacher.id,
+          grade: student.grade,
+          class_number: student.class_number,
+          student_number: student.student_number,
+          name: student.name,
+          group_number: 1 // 기본값
+        })
+      }
+      
+      alert(`${students.length}명의 학생이 등록되었습니다`)
+      loadStudents(teacher.id)
+    } catch (error) {
+      alert('엑셀 파일 처리 중 오류가 발생했습니다')
+    }
+  }
+
   const createSession = async () => {
-    if (!activityName) return alert('활동명을 입력하세요')
+    if (!activityName || !tokensPerStudent || !totalGroups) {
+      return alert('모든 필드를 입력하세요')
+    }
     
     await supabase.from('activity_sessions').insert({
       teacher_id: teacher.id,
       activity_name: activityName,
-      tokens_per_student: tokensPerStudent,
-      total_groups: totalGroups,
+      tokens_per_student: parseInt(tokensPerStudent),
+      total_groups: parseInt(totalGroups),
       status: 'active'
     })
     
     setActivityName('')
+    setTokensPerStudent('')
+    setTotalGroups('')
     loadSessions(teacher.id)
   }
 
@@ -113,10 +152,35 @@ export default function TeacherDashboard() {
               <CardTitle>학생 등록</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Input placeholder="학번" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} />
-              <Input placeholder="이름" value={studentName} onChange={e => setStudentName(e.target.value)} />
-              <Input type="number" placeholder="모둠 번호" value={groupNumber} onChange={e => setGroupNumber(Number(e.target.value))} />
-              <Button onClick={addStudent}>학생 추가</Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="학년" value={grade} onChange={e => setGrade(e.target.value)} />
+                <Input placeholder="반" value={classNumber} onChange={e => setClassNumber(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="번호" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} />
+                <Input placeholder="이름" value={studentName} onChange={e => setStudentName(e.target.value)} />
+              </div>
+              <Input placeholder="모둠 번호" value={groupNumber} onChange={e => setGroupNumber(e.target.value)} />
+              <Button onClick={addStudent} className="w-full">학생 추가</Button>
+              
+              <div className="border-t pt-4">
+                <div className="flex gap-2 mb-2">
+                  <Button onClick={generateSampleExcel} className="flex-1">샘플 다운로드</Button>
+                  <label className="flex-1">
+                    <Button className="w-full" onClick={() => document.getElementById('excel-upload')?.click()}>
+                      엑셀 업로드
+                    </Button>
+                    <input 
+                      id="excel-upload"
+                      type="file" 
+                      accept=".xlsx,.xls" 
+                      onChange={handleExcelUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">A열:학년, B열:반, C열:번호, D열:이름</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -126,9 +190,9 @@ export default function TeacherDashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Input placeholder="활동명" value={activityName} onChange={e => setActivityName(e.target.value)} />
-              <Input type="number" placeholder="1인당 토큰" value={tokensPerStudent} onChange={e => setTokensPerStudent(Number(e.target.value))} />
-              <Input type="number" placeholder="총 모둠 수" value={totalGroups} onChange={e => setTotalGroups(Number(e.target.value))} />
-              <Button onClick={createSession}>세션 시작</Button>
+              <Input placeholder="1인당 토큰" value={tokensPerStudent} onChange={e => setTokensPerStudent(e.target.value)} />
+              <Input placeholder="총 모둠 수" value={totalGroups} onChange={e => setTotalGroups(e.target.value)} />
+              <Button onClick={createSession} className="w-full">세션 시작</Button>
             </CardContent>
           </Card>
         </div>
@@ -140,8 +204,8 @@ export default function TeacherDashboard() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {students.map(s => (
-                <div key={s.id} className="p-2 bg-gray-100 rounded">
-                  {s.student_number} - {s.name} ({s.group_number}모둠) - {s.total_points}P
+                <div key={s.id} className="p-2 bg-gray-100 rounded text-sm">
+                  {s.grade}-{s.class_number}-{s.student_number} {s.name} ({s.group_number}모둠) {s.total_points}P
                 </div>
               ))}
             </div>

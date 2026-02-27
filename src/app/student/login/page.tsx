@@ -18,10 +18,12 @@ export default function StudentLogin() {
     const { data, error } = await supabase
       .from('students')
       .select('*, teachers(name)')
-      .eq('student_number', studentNumber)
+      .eq('grade', studentNumber.split('-')[0] || '')
+      .eq('class_number', studentNumber.split('-')[1] || '')
+      .eq('student_number', studentNumber.split('-')[2] || '')
       .single()
 
-    if (error || !data) return alert('등록되지 않은 학번입니다')
+    if (error || !data) return alert('등록되지 않은 학번입니다. 형식: 1-1-1')
     
     localStorage.setItem('student', JSON.stringify(data))
     router.push('/student/dashboard')
@@ -35,7 +37,7 @@ export default function StudentLogin() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Input 
-            placeholder="학번" 
+            placeholder="학번 (예: 1-1-1)" 
             value={studentNumber} 
             onChange={e => setStudentNumber(e.target.value)}
             onKeyPress={e => e.key === 'Enter' && handleLogin()}

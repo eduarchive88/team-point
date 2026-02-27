@@ -11,12 +11,14 @@ CREATE TABLE teachers (
 CREATE TABLE students (
   id SERIAL PRIMARY KEY,
   teacher_id INT REFERENCES teachers(id) ON DELETE CASCADE,
-  student_number VARCHAR(50) NOT NULL,
+  grade VARCHAR(10) NOT NULL,
+  class_number VARCHAR(10) NOT NULL,
+  student_number VARCHAR(10) NOT NULL,
   name VARCHAR(100) NOT NULL,
   group_number INT NOT NULL,
   total_points INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(teacher_id, student_number)
+  UNIQUE(teacher_id, grade, class_number, student_number)
 );
 
 -- 활동 세션 테이블
