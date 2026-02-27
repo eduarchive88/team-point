@@ -30,7 +30,7 @@ export default function TeacherDashboard() {
   const [sortField, setSortField] = useState<string>('is_group_leader')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [resultTab, setResultTab] = useState<'student' | 'groupLeader'>('student')
-  const [viewTab, setViewTab] = useState<'stats' | 'logs' | 'groupStats' | 'groupLogs'>('stats')
+  const [viewTab, setViewTab] = useState<'stats' | 'logs' | 'groupStats' | 'groupLogs' | 'nonParticipants'>('stats')
   const router = useRouter()
 
   useEffect(() => {
@@ -224,6 +224,9 @@ export default function TeacherDashboard() {
   }
 
   const viewSessionResults = async (sessionId: number) => {
+    const session = sessions.find(s => s.id === sessionId)
+    if (!session) return
+    
     const { data } = await supabase
       .from('activity_votes')
       .select('*, students(grade, class_number, student_number, name, group_number, is_group_leader)')
@@ -237,6 +240,30 @@ export default function TeacherDashboard() {
 
   const getStudentVotes = () => sessionResults.filter(v => !v.students?.is_group_leader)
   const getGroupLeaderVotes = () => sessionResults.filter(v => v.students?.is_group_leader)
+
+  const getNonParticipants = (isGroupLeader: boolean) => {
+    const activeSession = sessions.find(s => s.status === 'active')
+    if (!activeSession) return []
+    
+    const votes = isGroupLeader ? getGroupLeaderVotes() : getStudentVotes()
+    const participantIds = new Set(votes.map(v => v.student_id))
+    
+    return students.filter(s => 
+      s.is_group_leader === isGroupLeader && 
+      !participantIds.has(s.id)
+    )
+  }
+
+  const getNonParticipantGroups = () => {
+    const activeSession = sessions.find(s => s.status === 'active')
+    if (!activeSession) return []
+    
+    const votes = getGroupLeaderVotes()
+    const participantGroups = new Set(votes.map(v => v.students?.group_number))
+    
+    const allGroups = Array.from(new Set(students.filter(s => s.is_group_leader).map(s => s.group_number)))
+    return allGroups.filter(g => !participantGroups.has(g))
+  }
 
   const getGroupStats = (votes: any[]) => {
     const groupMap: any = {}
@@ -343,6 +370,12 @@ export default function TeacherDashboard() {
                   >
                     모둠별 로그
                   </button>
+                  <button 
+                    onClick={() => setViewTab('nonParticipants')}
+                    className={`px-4 py-2 ${viewTab === 'nonParticipants' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                  >
+                    미참여자
+                  </button>
                 </div>
 
                 {(() => {
@@ -406,7 +439,7 @@ export default function TeacherDashboard() {
                         </div>
                       </div>
                     )
-                  } else {
+                  } else if (viewTab === 'groupLogs') {
                     return (
                       <div className="space-y-4">
                         <h3 className="font-bold text-lg">모둠별 피드백 로그</h3>
@@ -426,6 +459,47 @@ export default function TeacherDashboard() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="font-bold text-lg">
+                          {resultTab === 'student' ? '미참여 학생' : '미참여 모둠'}
+                        </h3>
+                        {resultTab === 'student' ? (
+                          <div>
+                            {getNonParticipants(false).length === 0 ? (
+                              <p className="text-center text-gray-500 py-8">모든 학생이 참여했습니다!</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {getNonParticipants(false).map(s => (
+                                  <div key={s.id} className="p-3 border rounded bg-red-50">
+                                    <p className="font-semibold">
+                                      {s.grade}학년 {s.class_number}반 {s.student_number}번 {s.name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">{s.group_number}모둠</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            {getNonParticipantGroups().length === 0 ? (
+                              <p className="text-center text-gray-500 py-8">모든 모둠이 참여했습니다!</p>
+                            ) : (
+                              <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                                {getNonParticipantGroups().map(group => (
+                                  <div key={group} className="p-4 border rounded bg-red-50 text-center">
+                                    <p className="text-2xl font-bold text-red-600">{group}모둠</p>
+                                    <p className="text-sm text-gray-600 mt-1">미참여</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   }
@@ -563,9 +637,6 @@ export default function TeacherDashboard() {
                         <th className="text-center p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('group_number')}>
                           모둠 {sortField === 'group_number' && (sortOrder === 'asc' ? '↑' : '↓')}
                         </th>
-                        <th className="text-center p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('total_points')}>
-                          포인트 {sortField === 'total_points' && (sortOrder === 'asc' ? '↑' : '↓')}
-                        </th>
                         <th className="text-center p-2 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('is_group_leader')}>
                           모둠장 {sortField === 'is_group_leader' && (sortOrder === 'asc' ? '↑' : '↓')}
                         </th>
@@ -586,7 +657,6 @@ export default function TeacherDashboard() {
                               className="w-16 px-2 py-1 border rounded text-center"
                             />
                           </td>
-                          <td className="p-2 text-center text-blue-600 font-semibold">{s.total_points}P</td>
                           <td className="p-2 text-center">
                             <Button 
                               onClick={() => toggleGroupLeader(s.id, s.is_group_leader)}
