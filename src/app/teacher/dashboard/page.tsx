@@ -114,6 +114,23 @@ export default function TeacherDashboard() {
   }
 
   const toggleGroupLeader = async (studentId: number, currentStatus: boolean) => {
+    const student = students.find(s => s.id === studentId)
+    if (!student) return
+    
+    // 모둠장으로 지정하려는 경우
+    if (!currentStatus) {
+      // 같은 모둠에 이미 모둠장이 있는지 확인
+      const existingLeader = students.find(s => 
+        s.group_number === student.group_number && 
+        s.is_group_leader && 
+        s.id !== studentId
+      )
+      
+      if (existingLeader) {
+        return alert(`${student.group_number}모둠에는 이미 모둠장(${existingLeader.name})이 있습니다. 먼저 기존 모둠장을 해제해주세요.`)
+      }
+    }
+    
     await supabase.from('students').update({ is_group_leader: !currentStatus }).eq('id', studentId)
     loadStudents(teacher.id)
   }
