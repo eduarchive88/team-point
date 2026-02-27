@@ -33,7 +33,9 @@ export default function TeacherDashboard() {
   }, [])
 
   const loadStudents = async (teacherId: number) => {
-    const { data } = await supabase.from('students').select('*').eq('teacher_id', teacherId)
+    console.log('Loading students for teacher:', teacherId)
+    const { data, error } = await supabase.from('students').select('*').eq('teacher_id', teacherId)
+    console.log('Students data:', data, 'Error:', error)
     setStudents(data || [])
   }
 
@@ -47,7 +49,7 @@ export default function TeacherDashboard() {
       return alert('모든 필드를 입력하세요')
     }
     
-    await supabase.from('students').insert({
+    const { data, error } = await supabase.from('students').insert({
       teacher_id: teacher.id,
       grade,
       class_number: classNumber,
@@ -56,12 +58,18 @@ export default function TeacherDashboard() {
       group_number: parseInt(groupNumber)
     })
     
+    if (error) {
+      console.error('Insert error:', error)
+      alert('등록 중 오류가 발생했습니다: ' + error.message)
+      return
+    }
+    
     setGrade('')
     setClassNumber('')
     setStudentNumber('')
     setStudentName('')
     setGroupNumber('')
-    loadStudents(teacher.id)
+    await loadStudents(teacher.id)
   }
 
   const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,20 +79,27 @@ export default function TeacherDashboard() {
     try {
       const students = await parseExcelFile(file)
       
-      for (const student of students) {
-        await supabase.from('students').insert({
+      const { data, error } = await supabase.from('students').insert(
+        students.map(student => ({
           teacher_id: teacher.id,
           grade: student.grade,
           class_number: student.class_number,
           student_number: student.student_number,
           name: student.name,
           group_number: student.group_number
-        })
+        }))
+      )
+      
+      if (error) {
+        console.error('Insert error:', error)
+        alert('등록 중 오류가 발생했습니다: ' + error.message)
+        return
       }
       
       alert(`${students.length}명의 학생이 등록되었습니다`)
-      loadStudents(teacher.id)
+      await loadStudents(teacher.id)
     } catch (error) {
+      console.error('Excel processing error:', error)
       alert('엑셀 파일 처리 중 오류가 발생했습니다')
     }
   }
