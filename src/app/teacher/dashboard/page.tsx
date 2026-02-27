@@ -29,8 +29,8 @@ export default function TeacherDashboard() {
   const [sessionResults, setSessionResults] = useState<any[]>([])
   const [sortField, setSortField] = useState<string>('is_group_leader')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [resultTab, setResultTab] = useState<'individual' | 'group'>('individual')
-  const [viewTab, setViewTab] = useState<'stats' | 'logs'>('stats')
+  const [resultTab, setResultTab] = useState<'student' | 'groupLeader'>('student')
+  const [viewTab, setViewTab] = useState<'stats' | 'logs' | 'groupStats' | 'groupLogs'>('stats')
   const router = useRouter()
 
   useEffect(() => {
@@ -231,13 +231,16 @@ export default function TeacherDashboard() {
     
     setSessionResults(data || [])
     setShowResults(true)
-    setResultTab('individual')
+    setResultTab('student')
     setViewTab('stats')
   }
 
-  const getGroupStats = () => {
+  const getStudentVotes = () => sessionResults.filter(v => !v.students?.is_group_leader)
+  const getGroupLeaderVotes = () => sessionResults.filter(v => v.students?.is_group_leader)
+
+  const getGroupStats = (votes: any[]) => {
     const groupMap: any = {}
-    sessionResults.forEach(vote => {
+    votes.forEach(vote => {
       const group = vote.target_group
       if (!groupMap[group]) {
         groupMap[group] = { total: 0, count: 0, feedbacks: [] }
@@ -249,9 +252,9 @@ export default function TeacherDashboard() {
     return groupMap
   }
 
-  const getIndividualStats = () => {
+  const getIndividualStats = (votes: any[]) => {
     const studentMap: any = {}
-    sessionResults.forEach(vote => {
+    votes.forEach(vote => {
       const studentId = vote.student_id
       if (!studentMap[studentId]) {
         studentMap[studentId] = {
@@ -303,16 +306,16 @@ export default function TeacherDashboard() {
               <CardContent>
                 <div className="flex gap-2 mb-4">
                   <Button 
-                    onClick={() => setResultTab('individual')}
-                    className={resultTab === 'individual' ? 'bg-blue-600' : 'bg-gray-400'}
+                    onClick={() => setResultTab('student')}
+                    className={resultTab === 'student' ? 'bg-blue-600' : 'bg-gray-400'}
                   >
-                    개인별 결과
+                    학생 개인 투표 ({getStudentVotes().length}건)
                   </Button>
                   <Button 
-                    onClick={() => setResultTab('group')}
-                    className={resultTab === 'group' ? 'bg-blue-600' : 'bg-gray-400'}
+                    onClick={() => setResultTab('groupLeader')}
+                    className={resultTab === 'groupLeader' ? 'bg-blue-600' : 'bg-gray-400'}
                   >
-                    모둠별 결과
+                    모둠 대표 투표 ({getGroupLeaderVotes().length}건)
                   </Button>
                 </div>
                 <div className="flex gap-2 border-b mb-4">
@@ -320,93 +323,113 @@ export default function TeacherDashboard() {
                     onClick={() => setViewTab('stats')}
                     className={`px-4 py-2 ${viewTab === 'stats' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
-                    통계
+                    개인별 통계
                   </button>
                   <button 
                     onClick={() => setViewTab('logs')}
                     className={`px-4 py-2 ${viewTab === 'logs' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
-                    상세 로그
+                    개인별 로그
+                  </button>
+                  <button 
+                    onClick={() => setViewTab('groupStats')}
+                    className={`px-4 py-2 ${viewTab === 'groupStats' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                  >
+                    모둠별 통계
+                  </button>
+                  <button 
+                    onClick={() => setViewTab('groupLogs')}
+                    className={`px-4 py-2 ${viewTab === 'groupLogs' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                  >
+                    모둠별 로그
                   </button>
                 </div>
 
-                {resultTab === 'individual' ? (
-                  viewTab === 'stats' ? (
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-lg">개인별 투표 통계</h3>
-                      {getIndividualStats().map((data: any, idx: number) => (
-                        <div key={idx} className="p-4 border rounded bg-gray-50">
-                          <div className="flex justify-between items-center mb-2">
-                            <p className="font-semibold">
-                              {data.student?.grade}학년 {data.student?.class_number}반 {data.student?.student_number}번 {data.student?.name}
-                              {data.student?.is_group_leader && <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">모둠장</span>}
-                            </p>
-                            <span className="text-blue-600 font-bold">총 {data.totalGiven}토큰 부여</span>
-                          </div>
-                          <p className="text-sm text-gray-600">{data.student?.group_number}모둠 | {data.votes.length}건의 투표</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-lg">개인별 투표 로그</h3>
-                      {sessionResults.map((vote, idx) => (
-                        <div key={idx} className="p-4 border rounded">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
+                {(() => {
+                  const currentVotes = resultTab === 'student' ? getStudentVotes() : getGroupLeaderVotes()
+                  
+                  if (viewTab === 'stats') {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="font-bold text-lg">개인별 투표 통계</h3>
+                        {getIndividualStats(currentVotes).map((data: any, idx: number) => (
+                          <div key={idx} className="p-4 border rounded bg-gray-50">
+                            <div className="flex justify-between items-center mb-2">
                               <p className="font-semibold">
-                                {vote.students?.grade}학년 {vote.students?.class_number}반 {vote.students?.student_number}번 {vote.students?.name}
-                                {vote.students?.is_group_leader && <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">모둠장</span>}
+                                {data.student?.grade}학년 {data.student?.class_number}반 {data.student?.student_number}번 {data.student?.name}
+                                {data.student?.is_group_leader && <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">모둠장</span>}
                               </p>
-                              <p className="text-sm text-gray-600">
-                                {vote.students?.group_number}모둠 → {vote.target_group}모둠
-                              </p>
+                              <span className="text-blue-600 font-bold">총 {data.totalGiven}토큰 부여</span>
                             </div>
-                            <span className="text-blue-600 font-bold">{vote.allocated_tokens} 토큰</span>
-                          </div>
-                          <p className="text-gray-700">{vote.feedback}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  viewTab === 'stats' ? (
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-lg">모둠별 획등 통계</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {Object.entries(getGroupStats())
-                          .sort(([, a]: any, [, b]: any) => b.total - a.total)
-                          .map(([group, data]: any) => (
-                          <div key={group} className="p-4 border rounded bg-blue-50">
-                            <p className="text-2xl font-bold text-blue-600">{group}모둠</p>
-                            <p className="text-xl font-semibold mt-2">{data.total} 토큰</p>
-                            <p className="text-sm text-gray-600">{data.count}건의 투표 받음</p>
+                            <p className="text-sm text-gray-600">{data.student?.group_number}모둠 | {data.votes.length}건의 투표</p>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-lg">모둠별 피드백 로그</h3>
-                      {Object.entries(getGroupStats()).map(([group, data]: any) => (
-                        <div key={group} className="p-4 border rounded">
-                          <div className="flex justify-between items-center mb-3">
-                            <p className="text-xl font-bold">{group}모둠</p>
-                            <span className="text-blue-600 font-bold">총 {data.total}토큰</span>
-                          </div>
-                          <div className="space-y-2">
-                            {data.feedbacks.map((feedback: string, idx: number) => (
-                              <div key={idx} className="p-2 bg-gray-50 rounded text-sm">
-                                <p className="text-gray-500">익명의 피드백 #{idx + 1}</p>
-                                <p>{feedback}</p>
+                    )
+                  } else if (viewTab === 'logs') {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="font-bold text-lg">개인별 투표 로그</h3>
+                        {currentVotes.map((vote, idx) => (
+                          <div key={idx} className="p-4 border rounded">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <p className="font-semibold">
+                                  {vote.students?.grade}학년 {vote.students?.class_number}반 {vote.students?.student_number}번 {vote.students?.name}
+                                  {vote.students?.is_group_leader && <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">모둠장</span>}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {vote.students?.group_number}모둠 → {vote.target_group}모둠
+                                </p>
                               </div>
-                            ))}
+                              <span className="text-blue-600 font-bold">{vote.allocated_tokens} 토큰</span>
+                            </div>
+                            <p className="text-gray-700">{vote.feedback}</p>
                           </div>
+                        ))}
+                      </div>
+                    )
+                  } else if (viewTab === 'groupStats') {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="font-bold text-lg">모둠별 획등 통계</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {Object.entries(getGroupStats(currentVotes))
+                            .sort(([, a]: any, [, b]: any) => b.total - a.total)
+                            .map(([group, data]: any) => (
+                            <div key={group} className="p-4 border rounded bg-blue-50">
+                              <p className="text-2xl font-bold text-blue-600">{group}모둠</p>
+                              <p className="text-xl font-semibold mt-2">{data.total} 토큰</p>
+                              <p className="text-sm text-gray-600">{data.count}건의 투표 받음</p>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )
-                )}
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="font-bold text-lg">모둠별 피드백 로그</h3>
+                        {Object.entries(getGroupStats(currentVotes)).map(([group, data]: any) => (
+                          <div key={group} className="p-4 border rounded">
+                            <div className="flex justify-between items-center mb-3">
+                              <p className="text-xl font-bold">{group}모둠</p>
+                              <span className="text-blue-600 font-bold">총 {data.total}토큰</span>
+                            </div>
+                            <div className="space-y-2">
+                              {data.feedbacks.map((feedback: string, idx: number) => (
+                                <div key={idx} className="p-2 bg-gray-50 rounded text-sm">
+                                  <p className="text-gray-500">익명의 피드백 #{idx + 1}</p>
+                                  <p>{feedback}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }
+                })()}
               </CardContent>
             </Card>
           </div>
