@@ -87,9 +87,12 @@ export default function StudentDashboard() {
             <p className="text-gray-600">{student.teachers?.name} 선생님 클래스</p>
           </div>
           <div className="space-x-2">
-            <Button variant="outline" onClick={() => setShowResults(!showResults)}>
+            <button 
+              className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              onClick={() => setShowResults(!showResults)}
+            >
               {showResults ? '투표하기' : '내 결과'}
-            </Button>
+            </button>
             <Button onClick={() => { localStorage.removeItem('student'); router.push('/') }}>
               로그아웃
             </Button>

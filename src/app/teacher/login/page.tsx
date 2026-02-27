@@ -57,9 +57,12 @@ export default function TeacherLogin() {
           <Button onClick={handleAuth} className="w-full">
             {isSignup ? '회원가입' : '로그인'}
           </Button>
-          <Button variant="outline" onClick={() => setIsSignup(!isSignup)} className="w-full">
+          <button 
+            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+            onClick={() => setIsSignup(!isSignup)}
+          >
             {isSignup ? '로그인으로 전환' : '회원가입으로 전환'}
-          </Button>
+          </button>
           <Link href="/" className="block text-center text-sm text-gray-500 hover:underline">
             홈으로 돌아가기
           </Link>
