@@ -30,7 +30,7 @@ export default function TeacherDashboard() {
   const [sortField, setSortField] = useState<string>('is_group_leader')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [resultTab, setResultTab] = useState<'student' | 'groupLeader'>('student')
-  const [viewTab, setViewTab] = useState<'stats' | 'logs' | 'groupStats' | 'groupLogs' | 'nonParticipants'>('stats')
+  const [viewTab, setViewTab] = useState<'stats' | 'logs' | 'groupStats' | 'groupLogs' | 'participants' | 'nonParticipants'>('stats')
   const router = useRouter()
 
   useEffect(() => {
@@ -254,6 +254,16 @@ export default function TeacherDashboard() {
     )
   }
 
+  const getParticipants = (isGroupLeader: boolean) => {
+    const votes = isGroupLeader ? getGroupLeaderVotes() : getStudentVotes()
+    const participantIds = new Set(votes.map(v => v.student_id))
+    
+    return students.filter(s => 
+      s.is_group_leader === isGroupLeader && 
+      participantIds.has(s.id)
+    )
+  }
+
   const getNonParticipantGroups = () => {
     const activeSession = sessions.find(s => s.status === 'active')
     if (!activeSession) return []
@@ -263,6 +273,11 @@ export default function TeacherDashboard() {
     
     const allGroups = Array.from(new Set(students.filter(s => s.is_group_leader).map(s => s.group_number)))
     return allGroups.filter(g => !participantGroups.has(g))
+  }
+
+  const getParticipantGroups = () => {
+    const votes = getGroupLeaderVotes()
+    return Array.from(new Set(votes.map(v => v.students?.group_number))).filter(g => g)
   }
 
   const getGroupStats = (votes: any[]) => {
@@ -345,34 +360,40 @@ export default function TeacherDashboard() {
                     모둠 대표 투표 ({getGroupLeaderVotes().length}건)
                   </Button>
                 </div>
-                <div className="flex gap-2 border-b mb-4">
+                <div className="flex gap-2 border-b mb-4 overflow-x-auto">
                   <button 
                     onClick={() => setViewTab('stats')}
-                    className={`px-4 py-2 ${viewTab === 'stats' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                    className={`px-4 py-2 whitespace-nowrap ${viewTab === 'stats' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
                     개인별 통계
                   </button>
                   <button 
                     onClick={() => setViewTab('logs')}
-                    className={`px-4 py-2 ${viewTab === 'logs' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                    className={`px-4 py-2 whitespace-nowrap ${viewTab === 'logs' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
                     개인별 로그
                   </button>
                   <button 
                     onClick={() => setViewTab('groupStats')}
-                    className={`px-4 py-2 ${viewTab === 'groupStats' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                    className={`px-4 py-2 whitespace-nowrap ${viewTab === 'groupStats' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
                     모둠별 통계
                   </button>
                   <button 
                     onClick={() => setViewTab('groupLogs')}
-                    className={`px-4 py-2 ${viewTab === 'groupLogs' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                    className={`px-4 py-2 whitespace-nowrap ${viewTab === 'groupLogs' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
                     모둠별 로그
                   </button>
                   <button 
+                    onClick={() => setViewTab('participants')}
+                    className={`px-4 py-2 whitespace-nowrap ${viewTab === 'participants' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                  >
+                    참여자
+                  </button>
+                  <button 
                     onClick={() => setViewTab('nonParticipants')}
-                    className={`px-4 py-2 ${viewTab === 'nonParticipants' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
+                    className={`px-4 py-2 whitespace-nowrap ${viewTab === 'nonParticipants' ? 'border-b-2 border-blue-600 font-semibold' : 'text-gray-600'}`}
                   >
                     미참여자
                   </button>
@@ -461,7 +482,7 @@ export default function TeacherDashboard() {
                         ))}
                       </div>
                     )
-                  } else {
+                  } else if (viewTab === 'nonParticipants') {
                     return (
                       <div className="space-y-4">
                         <h3 className="font-bold text-lg">
@@ -494,6 +515,47 @@ export default function TeacherDashboard() {
                                   <div key={group} className="p-4 border rounded bg-red-50 text-center">
                                     <p className="text-2xl font-bold text-red-600">{group}모둠</p>
                                     <p className="text-sm text-gray-600 mt-1">미참여</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="font-bold text-lg">
+                          {resultTab === 'student' ? '참여 학생' : '참여 모둠'}
+                        </h3>
+                        {resultTab === 'student' ? (
+                          <div>
+                            {getParticipants(false).length === 0 ? (
+                              <p className="text-center text-gray-500 py-8">아직 참여한 학생이 없습니다.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {getParticipants(false).map(s => (
+                                  <div key={s.id} className="p-3 border rounded bg-green-50">
+                                    <p className="font-semibold">
+                                      {s.grade}학년 {s.class_number}반 {s.student_number}번 {s.name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">{s.group_number}모둠</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            {getParticipantGroups().length === 0 ? (
+                              <p className="text-center text-gray-500 py-8">아직 참여한 모둠이 없습니다.</p>
+                            ) : (
+                              <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                                {getParticipantGroups().map(group => (
+                                  <div key={group} className="p-4 border rounded bg-green-50 text-center">
+                                    <p className="text-2xl font-bold text-green-600">{group}모둠</p>
+                                    <p className="text-sm text-gray-600 mt-1">참여 완료</p>
                                   </div>
                                 ))}
                               </div>
