@@ -78,7 +78,7 @@ export default function TeacherDashboard() {
           class_number: student.class_number,
           student_number: student.student_number,
           name: student.name,
-          group_number: 1 // 기본값
+          group_number: student.group_number
         })
       }
       
@@ -134,6 +134,18 @@ export default function TeacherDashboard() {
     loadSessions(teacher.id)
   }
 
+  const updateStudent = async (studentId: number, field: string, value: any) => {
+    await supabase.from('students').update({ [field]: value }).eq('id', studentId)
+    loadStudents(teacher.id)
+  }
+
+  const deleteStudent = async (studentId: number) => {
+    if (confirm('정말 삭제하시겠습니까?')) {
+      await supabase.from('students').delete().eq('id', studentId)
+      loadStudents(teacher.id)
+    }
+  }
+
   if (!teacher) return <div>로딩중...</div>
 
   return (
@@ -179,7 +191,7 @@ export default function TeacherDashboard() {
                     />
                   </label>
                 </div>
-                <p className="text-xs text-gray-500">A열:학년, B열:반, C열:번호, D열:이름</p>
+                <p className="text-xs text-gray-500">A열:학년, B열:반, C열:번호, D열:이름, E열:모둠</p>
               </div>
             </CardContent>
           </Card>
@@ -202,10 +214,44 @@ export default function TeacherDashboard() {
             <CardTitle>등록된 학생 ({students.length}명)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="space-y-2">
               {students.map(s => (
-                <div key={s.id} className="p-2 bg-gray-100 rounded text-sm">
-                  {s.grade}-{s.class_number}-{s.student_number} {s.name} ({s.group_number}모둠) {s.total_points}P
+                <div key={s.id} className="p-3 bg-gray-100 rounded flex justify-between items-center">
+                  <div className="flex-1 grid grid-cols-5 gap-2 text-sm">
+                    <input 
+                      className="px-2 py-1 border rounded" 
+                      value={s.grade} 
+                      onChange={e => updateStudent(s.id, 'grade', e.target.value)}
+                    />
+                    <input 
+                      className="px-2 py-1 border rounded" 
+                      value={s.class_number} 
+                      onChange={e => updateStudent(s.id, 'class_number', e.target.value)}
+                    />
+                    <input 
+                      className="px-2 py-1 border rounded" 
+                      value={s.student_number} 
+                      onChange={e => updateStudent(s.id, 'student_number', e.target.value)}
+                    />
+                    <input 
+                      className="px-2 py-1 border rounded" 
+                      value={s.name} 
+                      onChange={e => updateStudent(s.id, 'name', e.target.value)}
+                    />
+                    <input 
+                      type="number" 
+                      className="px-2 py-1 border rounded" 
+                      value={s.group_number} 
+                      onChange={e => updateStudent(s.id, 'group_number', parseInt(e.target.value))}
+                    />
+                  </div>
+                  <div className="ml-2 text-sm text-blue-600">{s.total_points}P</div>
+                  <button 
+                    className="ml-2 px-2 py-1 bg-red-500 text-white rounded text-xs"
+                    onClick={() => deleteStudent(s.id)}
+                  >
+                    삭제
+                  </button>
                 </div>
               ))}
             </div>
